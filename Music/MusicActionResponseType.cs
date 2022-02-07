@@ -11,8 +11,9 @@ namespace TomatenMusic.Music
         WRONG_CHANNEL_TYPE,
         NOT_CONNECTED,
         NO_MATCHES,
-        FAIL
-
+        FAIL, 
+        QUEUE_EMPTY,
+        ALREADY_CONNECTED
         
     }
 }

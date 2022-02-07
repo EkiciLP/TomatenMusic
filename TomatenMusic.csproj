@@ -10,6 +10,7 @@
     <PackageReference Include="DSharpPlus.Interactivity" Version="4.1.0" />
     <PackageReference Include="DSharpPlus.Lavalink" Version="4.1.0" />
     <PackageReference Include="DSharpPlus.SlashCommands" Version="4.2.0-nightly-01065" />
+	 <None Update="config.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

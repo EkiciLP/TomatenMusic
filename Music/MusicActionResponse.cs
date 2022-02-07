@@ -9,10 +9,10 @@ namespace TomatenMusic.Music
     class MusicActionResponse
     {
 
-        MusicActionResponseType Type { get; }
-        LavalinkPlaylist Playlist { get; }
-        LavalinkTrack Track { get; }
-        bool isPlaylist { get; }
+        public MusicActionResponseType Type { get; }
+        public LavalinkPlaylist Playlist { get; }
+        public LavalinkTrack Track { get; }
+        public bool isPlaylist { get; }
 
         public MusicActionResponse(MusicActionResponseType type, LavalinkTrack track = null, LavalinkPlaylist playlist = null)
         {

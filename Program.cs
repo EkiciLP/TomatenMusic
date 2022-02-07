@@ -8,7 +8,13 @@ using DSharpPlus.Net;
 using DSharpPlus.Lavalink;
 using System.Linq;
 using DSharpPlus.SlashCommands;
+using DSharpPlus.SlashCommands.EventArgs;
 using TomatenMusic.Commands;
+using Newtonsoft.Json;
+using System.IO;
+using System.Text;
+using Microsoft.Extensions.DependencyInjection;
+using TomatenMusic.Music;
 
 namespace TomatenMusic
 {
@@ -23,12 +29,26 @@ namespace TomatenMusic
             new Program().InitBotAsync(args).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
-        async Task InitBotAsync(string[] args)
+
+        public struct ConfigJson
         {
+            [JsonProperty("TOKEN")]
+            public string Token { get; private set; }
+
+            [JsonProperty("LavaLinkPassword")]
+            public string LavaLinkPassword { get; private set; }
+        }
+
+        public ConfigJson config;
+
+        private async Task InitBotAsync(string[] args)
+        {
+
+            await initJson();
             Discord = new DiscordClient(new DiscordConfiguration
             {
                 TokenType = TokenType.Bot,
-                Token = "NzY2OTM5ODMxMjkyMTMzMzc2.X4qqYA.JF2Snfi5aOLHvNpUz2ttxqjpUfU",
+                Token = config.Token,
                 MinimumLogLevel = LogLevel.Debug,
                 Intents = DiscordIntents.All
 
@@ -42,7 +62,7 @@ namespace TomatenMusic
 
             var lavalinkConfig = new LavalinkConfiguration
             {
-                Password = "SGWaldsolms9",
+                Password = config.LavaLinkPassword,
                 RestEndpoint = lavaEndPoint,
                 SocketEndpoint = lavaEndPoint
             };
@@ -51,9 +71,11 @@ namespace TomatenMusic
 
             var slash = Discord.UseSlashCommands();
 
-            Discord.MessageCreated += Discord_MessageCreated;
             Discord.Ready += Discord_Ready;
             Discord.GetSlashCommands().RegisterCommands<MusicCommands>(835089895092387872);
+
+            slash.SlashCommandInvoked += Slash_SlashCommandInvoked;
+            slash.SlashCommandErrored += Slash_SlashCommandErrored;
 
             await Discord.ConnectAsync();
             await lavalink.ConnectAsync(lavalinkConfig);
@@ -62,34 +84,39 @@ namespace TomatenMusic
             await Task.Delay(-1);
         }
 
+        private async Task initJson()
+        {
+            var json = "";
+            using (var fs = File.OpenRead("config.json"))
+            using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                json = await sr.ReadToEndAsync();
+
+            config = JsonConvert.DeserializeObject<ConfigJson>(json);
+        }
+
+        private async Task Slash_SlashCommandErrored(SlashCommandsExtension sender, SlashCommandErrorEventArgs e)
+        {
+            Discord.Logger.LogDebug("Command {0} invoked by {1} on Guild {2} with Exception {3}", e.Context.CommandName, e.Context.Member, e.Context.Guild, e.Exception);
+        }
+
+        private async Task Slash_SlashCommandInvoked(SlashCommandsExtension sender, DSharpPlus.SlashCommands.EventArgs.SlashCommandInvokedEventArgs e)
+        {
+            Discord.Logger.LogDebug("Command {0} invoked by {1} on Guild {2}", e.Context.CommandName, e.Context.Member, e.Context.Guild);
+            GuildPlayer player = await GuildPlayer.GetGuildPlayerAsync(e.Context.Guild);
+            IServiceCollection services = new ServiceCollection().AddSingleton<GuildPlayer>()
+
+            e.Context.Services = services.BuildServiceProvider();
+
+            //TODO
+        }
+
         private async Task Discord_Ready(DiscordClient sender, ReadyEventArgs e)
         {
             await Discord.UpdateStatusAsync(new DiscordActivity("In Development", ActivityType.Playing), UserStatus.Online);
 
         }
 
-        private async Task Discord_MessageCreated(DiscordClient sender, MessageCreateEventArgs e)
-        {
-            if (!e.Message.Content.StartsWith(",")) return;
 
-            var lava = sender.GetLavalink();
-            if (!lava.ConnectedNodes.Any())
-            {
-                await e.Message.RespondAsync("The Lavalink connection is not established");
-                return;
-            }
-            var node = lava.ConnectedNodes.Values.First();
-            var member = await e.Guild.GetMemberAsync(e.Author.Id);
-
-            if (member.VoiceState == null || member.VoiceState.Channel.Type != ChannelType.Voice)
-            {
-                await e.Message.RespondAsync("Not a valid voice channel.");
-                return;
-            }
-
-            await node.ConnectAsync(member.VoiceState.Channel);
-
-        }
 
 
     }

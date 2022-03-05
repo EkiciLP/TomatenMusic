@@ -13,7 +13,8 @@ namespace TomatenMusic.Music
         NO_MATCHES,
         FAIL, 
         QUEUE_EMPTY,
-        ALREADY_CONNECTED
+        ALREADY_CONNECTED,
+        NOTHING_PLAYING
         
     }
 }

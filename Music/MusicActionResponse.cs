@@ -11,15 +11,16 @@ namespace TomatenMusic.Music
 
         public MusicActionResponseType Type { get; }
         public LavalinkPlaylist Playlist { get; }
-        public LavalinkTrack Track { get; }
+        public MultiTrack Track { get; }
         public bool isPlaylist { get; }
+        public string Message { get;}
 
-        public MusicActionResponse(MusicActionResponseType type, LavalinkTrack track = null, LavalinkPlaylist playlist = null)
+        public MusicActionResponse(MusicActionResponseType type, MultiTrack track = null, LavalinkPlaylist playlist = null, string message = null)
         {
             Type = type;
             Playlist = playlist;
             Track = track;
-
+            Message = message;
             isPlaylist = playlist != null;
         }
     }

@@ -15,19 +15,9 @@ namespace TomatenMusic.Commands.Checks
 
         public override async Task<bool> ExecuteChecksAsync(InteractionContext ctx)
         {
-            if (ctx.Member.VoiceState == null || ctx.Member.VoiceState.Channel == null)
-            {
-                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DSharpPlus.Entities.DiscordInteractionResponseBuilder().WithContent("You are not in a Voice Channel.").AsEphemeral(true));
-                return false;
-            }
+            GuildPlayer player = await GuildPlayer.GetGuildPlayerAsync(ctx.Guild);
 
-            if ((await (await GuildPlayer.GetGuildPlayerAsync(ctx.Guild)).GetChannelAsync()) != ctx.Member.VoiceState.Channel)
-            {
-                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DSharpPlus.Entities.DiscordInteractionResponseBuilder().WithContent("You are not in the same Channel as the Bot").AsEphemeral(true));
-                return false;
-            }
-
-            return true;
+            return await player.AreActionsAllowedAsync(ctx.Member);
         }
     }
 }

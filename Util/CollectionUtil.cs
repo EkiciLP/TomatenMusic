@@ -23,5 +23,31 @@ namespace TomatenMusic.Util
                 list[n] = value;
             }
         }
+
+       /* public static void Remove<T>(this IList<T> list, T item)
+        {
+            List<T> newList = new List<T>();
+            bool done = false;
+            foreach (var i in list)
+            {
+                if (i.Equals(item) && !done)
+                {
+                    done = true;
+                    continue;
+                }
+
+                newList.Add(i);
+            }
+
+            list = newList;
+        }*/
+
+        public static class Arrays
+        {
+            public static IList<T> AsList<T>(params T[] source)
+            {
+                return source;
+            }
+        }
     }
 }

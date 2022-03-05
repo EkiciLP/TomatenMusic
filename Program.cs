@@ -15,17 +15,20 @@ using System.IO;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using TomatenMusic.Music;
+using SpotifyAPI.Web.Auth;
+using SpotifyAPI.Web;
+using DSharpPlus.Exceptions;
 
 namespace TomatenMusic
 {
     class Program
     {
 
-        public static DiscordClient Discord { get; set; }
+        public static DiscordClient Discord { get; private set; }
+        public static Spotify spotify { get; private set; }
 
         static void Main(string[] args)
         {
-
             new Program().InitBotAsync(args).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
@@ -37,13 +40,17 @@ namespace TomatenMusic
 
             [JsonProperty("LavaLinkPassword")]
             public string LavaLinkPassword { get; private set; }
+            [JsonProperty("SpotifyClientId")]
+            public string SpotifyClientId { get; private set; }
+            [JsonProperty("SpotifyClientSecret")]
+            public string SpotifyClientSecret { get; private set; }
+
         }
 
         public ConfigJson config;
 
         private async Task InitBotAsync(string[] args)
         {
-
             await initJson();
             Discord = new DiscordClient(new DiscordConfiguration
             {
@@ -56,7 +63,7 @@ namespace TomatenMusic
 
             var lavaEndPoint = new ConnectionEndpoint
             {
-                Hostname = "127.0.0.1",
+                Hostname = "116.202.92.16",
                 Port = 2333
             };
 
@@ -71,17 +78,35 @@ namespace TomatenMusic
 
             var slash = Discord.UseSlashCommands();
 
+            spotify = new Spotify(SpotifyClientConfig.CreateDefault().WithAuthenticator(new ClientCredentialsAuthenticator(config.SpotifyClientId, config.SpotifyClientSecret)));
+            
             Discord.Ready += Discord_Ready;
-            Discord.GetSlashCommands().RegisterCommands<MusicCommands>(835089895092387872);
+
+            //Discord.GetSlashCommands().RegisterCommands<MusicCommands>(835089895092387872);
+            //Discord.GetSlashCommands().RegisterCommands<PlayCommandGroup>(835089895092387872);
+
+            Discord.GetSlashCommands().RegisterCommands<MusicCommands>();
+            Discord.GetSlashCommands().RegisterCommands<PlayCommandGroup>();
 
             slash.SlashCommandInvoked += Slash_SlashCommandInvoked;
             slash.SlashCommandErrored += Slash_SlashCommandErrored;
+            Discord.ClientErrored += Discord_ClientErrored;
 
             await Discord.ConnectAsync();
             await lavalink.ConnectAsync(lavalinkConfig);
 
 
             await Task.Delay(-1);
+        }
+
+        private Task Discord_ClientErrored(DiscordClient sender, ClientErrorEventArgs e)
+        {
+            Discord.Logger.LogDebug("Event {0} errored with Exception {3}", e.EventName, e.Exception);
+            if (e.Exception is NotFoundException)
+                Discord.Logger.LogDebug($"{ ((NotFoundException)e.Exception).JsonMessage }");
+            if (e.Exception is BadRequestException)
+                Discord.Logger.LogDebug($"{ ((BadRequestException)e.Exception).Errors }");
+            return Task.CompletedTask;
         }
 
         private async Task initJson()
@@ -94,25 +119,30 @@ namespace TomatenMusic
             config = JsonConvert.DeserializeObject<ConfigJson>(json);
         }
 
-        private async Task Slash_SlashCommandErrored(SlashCommandsExtension sender, SlashCommandErrorEventArgs e)
+        
+
+        private Task Slash_SlashCommandErrored(SlashCommandsExtension sender, SlashCommandErrorEventArgs e)
         {
             Discord.Logger.LogDebug("Command {0} invoked by {1} on Guild {2} with Exception {3}", e.Context.CommandName, e.Context.Member, e.Context.Guild, e.Exception);
+            if (e.Exception is NotFoundException)
+                Discord.Logger.LogDebug($"{ ((NotFoundException)e.Exception).JsonMessage }");
+            if (e.Exception is BadRequestException)
+                Discord.Logger.LogDebug($"{ ((BadRequestException)e.Exception).JsonMessage }");
+            return Task.CompletedTask;
+
         }
 
-        private async Task Slash_SlashCommandInvoked(SlashCommandsExtension sender, DSharpPlus.SlashCommands.EventArgs.SlashCommandInvokedEventArgs e)
+        private Task Slash_SlashCommandInvoked(SlashCommandsExtension sender, DSharpPlus.SlashCommands.EventArgs.SlashCommandInvokedEventArgs e)
         {
             Discord.Logger.LogDebug("Command {0} invoked by {1} on Guild {2}", e.Context.CommandName, e.Context.Member, e.Context.Guild);
-            GuildPlayer player = await GuildPlayer.GetGuildPlayerAsync(e.Context.Guild);
-            IServiceCollection services = new ServiceCollection().AddSingleton<GuildPlayer>()
+            
 
-            e.Context.Services = services.BuildServiceProvider();
-
-            //TODO
+            return Task.CompletedTask;
         }
 
         private async Task Discord_Ready(DiscordClient sender, ReadyEventArgs e)
         {
-            await Discord.UpdateStatusAsync(new DiscordActivity("In Development", ActivityType.Playing), UserStatus.Online);
+            await Discord.UpdateStatusAsync(new DiscordActivity("/ commands!", ActivityType.Watching), UserStatus.Online);
 
         }
 

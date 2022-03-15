@@ -1,2 +1,3 @@
-[![Build status](https://ci.appveyor.com/api/projects/status/rrxxds7fkxbltlcl?svg=true)](https://ci.appveyor.com/project/EkiciLP/tomatenmusic)
+![TeamCity build status](https://ci.tomatentum.net/app/rest/builds/buildType:id:TomatenMusic_Build/statusIcon.svg)
+
 # TomatenMusic

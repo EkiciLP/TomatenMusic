@@ -13,6 +13,8 @@ namespace TomatenMusic.Prompt.Model
 {
     abstract class DiscordPromptBase
     {
+        public static List<DiscordPromptBase> ActivePrompts { get; } = new List<DiscordPromptBase>();
+
         public PromptState State { get; protected set; }
         public DiscordMessage Message { get; private set; }
         public DiscordInteraction Interaction { get; private set; }
@@ -69,7 +71,7 @@ namespace TomatenMusic.Prompt.Model
 
             if (withEdit)
                 await EditMessageAsync(new DiscordWebhookBuilder().WithContent("This Prompt is invalid!"));
-
+            ActivePrompts.Remove(this);
             if (destroyHistory)
             {
                 if (LastPrompt != null)
@@ -92,7 +94,7 @@ namespace TomatenMusic.Prompt.Model
                 return;
 
             Program.Discord.ComponentInteractionCreated += Discord_ComponentInteractionCreated;
-
+            ActivePrompts.Add(this);
             AddGuids();
             DiscordMessageBuilder builder = await GetMessageAsync();
             builder = await AddComponentsAsync(builder);
@@ -108,6 +110,7 @@ namespace TomatenMusic.Prompt.Model
                 return;
 
             Program.Discord.ComponentInteractionCreated += Discord_ComponentInteractionCreated;
+            ActivePrompts.Add(this);
 
             AddGuids();
             DiscordFollowupMessageBuilder builder = await GetFollowupMessageAsync();
@@ -124,6 +127,7 @@ namespace TomatenMusic.Prompt.Model
             if (State == PromptState.INVALID)
                 return;
             Program.Discord.ComponentInteractionCreated += Discord_ComponentInteractionCreated;
+            ActivePrompts.Add(this);
 
             AddGuids();
             DiscordWebhookBuilder builder = await GetWebhookMessageAsync();
@@ -138,8 +142,7 @@ namespace TomatenMusic.Prompt.Model
             if (State == PromptState.INVALID)
                 return;
             Program.Discord.ComponentInteractionCreated += Discord_ComponentInteractionCreated;
-
-
+            ActivePrompts.Add(this);
             AddGuids();
             DiscordWebhookBuilder builder = await GetWebhookMessageAsync();
             Interaction = interaction;

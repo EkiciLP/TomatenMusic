@@ -32,14 +32,7 @@ namespace TomatenMusic.Prompt.Implementation
             DiscordEmbedBuilder builder = new DiscordEmbedBuilder()
                 .WithTitle("What do you want to do with these Tracks?");
 
-
-
-            StringBuilder stringBuilder = new StringBuilder();
-            foreach (MultiTrack track in Tracks)
-            {
-                stringBuilder.Append("▫️ ").Append(track.Title.Equals("Unknown title") ? track.YoutubeIdentifier : $"[{track.Title}]({track.Uri})").Append(" [").Append(Common.GetTimestamp(track.Length)).Append("]\n");
-            }
-            builder.WithDescription(stringBuilder.ToString());
+            builder.WithDescription(Common.TrackListString(Tracks));
 
             return Task.FromResult(new DiscordMessageBuilder().WithEmbed(builder.Build()));
         }

@@ -16,8 +16,11 @@ namespace TomatenMusic.Commands.Checks
         public override async Task<bool> ExecuteChecksAsync(InteractionContext ctx)
         {
             GuildPlayer player = await GuildPlayer.GetGuildPlayerAsync(ctx.Guild);
+            bool allowed = await player.AreActionsAllowedAsync(ctx.Member);
 
-            return await player.AreActionsAllowedAsync(ctx.Member);
+            if (!allowed)
+                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DSharpPlus.Entities.DiscordInteractionResponseBuilder().WithContent("Please connect to the Bots Channel to use this Command").AsEphemeral(true));
+            return allowed;
         }
     }
 }

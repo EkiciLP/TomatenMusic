@@ -86,9 +86,10 @@ namespace TomatenMusic.Commands
             GuildPlayer player = await GuildPlayer.GetGuildPlayerAsync(ctx.Guild);
 
             MusicActionResponse response = await player.SearchAsync(query, true);
+
             if (response.Type == MusicActionResponseType.SUCCESS)
             {
-                var prompt = new SongSelectorPrompt(response.Playlist);
+                var prompt = new SongSelectorPrompt($"Search results for {query}", response.Tracks);
                 prompt.ConfirmCallback = async (tracks) =>
                 {
                     var selectPrompt = new SongListActionPrompt(tracks, ctx.Member, prompt);

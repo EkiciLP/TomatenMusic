@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using DSharpPlus.Lavalink;
+using TomatenMusic.Services;
+using System.Linq;
+using SpotifyAPI.Web;
 
 namespace TomatenMusic.Music.Entitites
 {
@@ -20,18 +24,19 @@ namespace TomatenMusic.Music.Entitites
             return newTracks;
         }
 
-        public MultiTrack(LavalinkTrack track)
+        public MultiTrack(LavalinkTrack track, string spotifyIdentifier = null)
         {
             LavalinkTrack = track;
             TrackString = track.TrackString;
             YoutubeIdentifier = track.Identifier;
             IsSeekable = track.IsSeekable;
-            Author = track.Author;
+            YoutubeAuthorName = track.Author;
             Length = track.Length;
             IsStream = track.IsStream;
             Position = track.Position;
             Title = track.Title;
             Uri = track.Uri;
+            SpotifyIdentifier = spotifyIdentifier;
         }
 
         //
@@ -46,10 +51,6 @@ namespace TomatenMusic.Music.Entitites
         // Summary:
         //     Gets whether the track is seekable.
         public bool IsSeekable { get; private set; }
-        //
-        // Summary:
-        //     Gets the author of the track.
-        public string Author { get; private set; }
         //
         // Summary:
         //     Gets the track's duration.
@@ -70,13 +71,38 @@ namespace TomatenMusic.Music.Entitites
         // Summary:
         //     Gets the source Uri of this track.
         public Uri Uri { get; private set; }
-
-        public int YoutubeViews { get; private set; }
-
         public LavalinkTrack LavalinkTrack { get; private set; }
-
-        public bool IsQueueLoopItem { get; set; }
-
         public bool IsFile { get; set; }
+        public string PlayId { get; set; }
+        public string YoutubeDescription { get; set; }
+        public IEnumerable<string> YoutubeTags { get; set; }
+        public ulong YoutubeViews { get; set; }
+        public ulong YoutubeLikes { get; set; }
+        public Uri YoutubeThumbnail { get; set; }
+        public DateTime YoutubeUploadDate { get; set; }
+        //
+        // Summary:
+        //     Gets the author of the track.
+        public string YoutubeAuthorName { get; private set; }
+        public Uri YoutubeAuthorThumbnail { get; set; }
+        public ulong YoutubeAuthorSubs { get; set; }
+        public Uri YoutubeAuthorUri { get; set; }
+        public ulong YoutubeCommentCount { get; set; }
+        public string SpotifyIdentifier { get; }
+        public SimpleAlbum SpotifyAlbum { get; set; }
+        public List<SimpleArtist> SpotifyArtists { get; set; }
+        public int SpotifyPopularity { get; set; }
+
+
+        public async Task<MultiTrack> GetRelatedVideo()
+        {
+            var video = await Youtube.GetRelatedVideoAsync(YoutubeIdentifier);
+            LavalinkLoadResult loadResult = await Program.Discord.GetLavalink().GetIdealNodeConnection().Rest.GetTracksAsync(new Uri($"https://youtu.be/{video.Id}"));
+
+            return await Youtube.PopulateTrackInfoAsync(new MultiTrack(loadResult.Tracks.First()));
+        }
+
+
+
     }
 }

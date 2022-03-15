@@ -24,12 +24,13 @@ namespace TomatenMusic.Prompt.Implementation
             return Task.CompletedTask;
         };
 
-        public LavalinkPlaylist Playlist { get; private set; }
+        public IEnumerable<MultiTrack> Tracks { get; private set; }
+        public string Title { get; set; }
 
-        public SongSelectorPrompt(LavalinkPlaylist playlist, DiscordPromptBase lastPrompt = null, List<DiscordEmbed> embeds = null) : base(playlist.Name, playlist.Tracks.ToList(), lastPrompt, embeds)
+        public SongSelectorPrompt(string title, IEnumerable<MultiTrack> tracks, DiscordPromptBase lastPrompt = null, List<DiscordEmbed> embeds = null) : base(title, tracks.ToList(), lastPrompt, embeds)
         {
-
-            Playlist = playlist;
+            Title = title;
+            Tracks = tracks;
             AddOption(new ButtonPromptOption
             {
                 Emoji = new DiscordComponentEmoji("✔️"),
@@ -52,7 +53,7 @@ namespace TomatenMusic.Prompt.Implementation
             return Task.FromResult<PaginatedSelectMenuOption<MultiTrack>>(new PaginatedSelectMenuOption<MultiTrack>
             {
                 Label = item.Title,
-                Description = item.Author
+                Description = item.YoutubeAuthorName
             });
 
         }
@@ -87,14 +88,8 @@ namespace TomatenMusic.Prompt.Implementation
         protected override DiscordMessageBuilder PopulateMessage(DiscordEmbedBuilder builder)
         {
 
-            builder.WithTitle(Playlist.Name);
-            
-            StringBuilder stringBuilder = new StringBuilder();
-            foreach (MultiTrack track in PageManager.GetPage(CurrentPage))
-            {
-                stringBuilder.Append("▫️ ").Append(track.Title.Equals("Unknown title") ? track.YoutubeIdentifier : $"[{track.Title}]({track.Uri})").Append(" [").Append(Common.GetTimestamp(track.Length)).Append("]\n");
-            }
-            builder.WithDescription(stringBuilder.ToString());
+            builder.WithTitle(Title);
+            builder.WithDescription(Common.TrackListString(PageManager.GetPage(CurrentPage)));
             List<DiscordEmbed> embeds = new List<DiscordEmbed>();
             embeds.Add(builder.Build());
 

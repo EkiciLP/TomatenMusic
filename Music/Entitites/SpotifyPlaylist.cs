@@ -1,34 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using DSharpPlus.Lavalink;
-using System.Linq;
-using TomatenMusic.Util;
-using DSharpPlus.Entities;
 
 namespace TomatenMusic.Music.Entitites
 {
-    interface LavalinkPlaylist
+    class SpotifyPlaylist : LavalinkPlaylist
     {
         public string Name { get; }
         public IEnumerable<MultiTrack> Tracks { get; }
-        public Uri Url { get; }
+        public Uri Url { get; set; }
         public string AuthorName { get; set; }
         public Uri AuthorUri { get; set; }
         public string Description { get; set; }
+        public int Followers { get; set; }
         public string Identifier { get; }
         public Uri AuthorThumbnail { get; set; }
 
-        public TimeSpan GetLength()
+
+        public SpotifyPlaylist(string name, string id, IEnumerable<MultiTrack> tracks)
         {
-            TimeSpan timeSpan = TimeSpan.FromTicks(0);
-
-            foreach (var track in Tracks)
-            {
-                timeSpan = timeSpan.Add(track.Length);
-            }
-
-            return timeSpan;
+            Name = name;
+            Identifier = id;
+            Tracks = tracks;
         }
     }
 }

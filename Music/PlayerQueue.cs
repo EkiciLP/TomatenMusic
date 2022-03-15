@@ -31,8 +31,11 @@ namespace TomatenMusic.Music
         public MusicActionResponseType QueueTrack(MultiTrack track)
         {
             CurrentPlaylist = null;
+            track.PlayId = RandomUtil.GenerateGuid();
             Queue.Enqueue(track);
             Program.Discord.Logger.LogInformation("Queued Track {0}", track.Title);
+            if (LoopType == LoopType.QUEUE)
+                QueueLoopList.Add(track);
             return MusicActionResponseType.SUCCESS;
         }
 
@@ -40,10 +43,20 @@ namespace TomatenMusic.Music
         {
             return await Task.Run(() =>
             {
-                CurrentPlaylist = playlist;
+                if (CurrentPlaylist == null)
+                    CurrentPlaylist = playlist;
+
                 Program.Discord.Logger.LogInformation("Queued Playlist {0}", playlist.Name);
                 foreach (MultiTrack track in playlist.Tracks)
+                {
                     Queue.Enqueue(track);
+                    track.PlayId = RandomUtil.GenerateGuid();
+                }
+
+
+
+                if (LoopType == LoopType.QUEUE)
+                    QueueLoopList.AddRange(playlist.Tracks);
                 return MusicActionResponseType.SUCCESS;
             });
 
@@ -56,7 +69,12 @@ namespace TomatenMusic.Music
                 CurrentPlaylist = null;
                 Program.Discord.Logger.LogInformation("Queued TrackList {0}", tracks.ToString());
                 foreach (MultiTrack track in tracks)
-                    QueueTrack(track);
+                {
+                    Queue.Enqueue(track);
+                    track.PlayId = RandomUtil.GenerateGuid();
+                }
+                if (LoopType == LoopType.QUEUE)
+                    QueueLoopList.AddRange(tracks);
                 return MusicActionResponseType.SUCCESS;
             });
 
@@ -70,14 +88,14 @@ namespace TomatenMusic.Music
             return MusicActionResponseType.SUCCESS;
         }
 
-        public MusicActionResponseType Remove(string uri)
+        public MusicActionResponseType Remove(string playid)
         {
             if (Queue.Count == 0) return MusicActionResponseType.QUEUE_EMPTY;
             Queue<MultiTrack> newQueue = new Queue<MultiTrack>();
 
             foreach (var item in Queue)
             {
-                if (item.Uri.ToString() != uri)
+                if (item.PlayId != playid)
                     newQueue.Enqueue(item);
             }
             Queue = newQueue;
@@ -131,9 +149,6 @@ namespace TomatenMusic.Music
 
             Queue = new Queue<MultiTrack>(Queue.Prepend(LastTrack));
             LastTrack = PlayedTracks.Dequeue();
-            List<MultiTrack> tracks = new List<MultiTrack>(Queue);
-            tracks.Remove(tracks.Where( track => track.IsQueueLoopItem && track.YoutubeIdentifier == LastTrack.YoutubeIdentifier).FirstOrDefault());
-            Queue = new Queue<MultiTrack>(tracks);
 
             return new MusicActionResponse(MusicActionResponseType.SUCCESS, LastTrack);
         }
@@ -163,25 +178,6 @@ namespace TomatenMusic.Music
             }
 
             return MusicActionResponseType.SUCCESS;
-        }
-
-        public string GetQueueString()
-        {
-            StringBuilder builder = new StringBuilder();
-            int count = 1;
-            foreach (MultiTrack track in Queue)
-            {
-
-                if (count > 15)
-                {
-                    builder.Append(String.Format("***And {0} more...***", Queue.Count() - 15));
-                    break;
-                }
-
-                builder.Append(count).Append(": ").Append($"[{track.Title}]({track.Uri})").Append(" [").Append(Common.GetTimestamp(track.Length)).Append("]\n");
-                count++;
-            }
-            return builder.ToString();
         }
     }
 }

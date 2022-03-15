@@ -11,6 +11,7 @@ using TomatenMusic.Util;
 using Microsoft.Extensions.Logging;
 using TomatenMusic.Music;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace TomatenMusic.Util
 {
@@ -21,11 +22,11 @@ namespace TomatenMusic.Util
         {
 
             DiscordEmbedBuilder builder = new DiscordEmbedBuilder()
-                .WithAuthor(track.Author)
+                .WithAuthor(track.YoutubeAuthorName, track.YoutubeAuthorUri.ToString(), track.YoutubeAuthorThumbnail.ToString())
                 .WithTitle(track.Title)
                 .WithUrl(track.Uri)
                 .WithImageUrl("https://img.youtube.com/vi/" + track.YoutubeIdentifier + "/mqdefault.jpg")
-                .WithDescription(GetMetaTagValue(track.Uri.ToString()))
+                .WithDescription(track.YoutubeDescription)
                 .AddField("Length", Common.GetTimestamp(track.Length), true);
 
             if (position != -1)
@@ -33,6 +34,14 @@ namespace TomatenMusic.Util
                 builder.AddField("Position", (position == 0 ? "Now Playing" : position.ToString()), true);
             }
             builder.AddField("Current Queue Loop", loopType.ToString(), true);
+            if (!track.IsFile)
+            {
+                builder.AddField("Views", $"{track.YoutubeViews:N0} Views", true);
+                builder.AddField("Rating", $"{track.YoutubeLikes:N0} 👍", true);
+                builder.AddField("Upload Date", $"{track.YoutubeUploadDate.ToString("dd. MMMM, yyyy")}", true);
+                builder.AddField("Comments", $"{track.YoutubeCommentCount:N0} Comments", true);
+                builder.AddField("Channel Subscriptions", $"{track.YoutubeAuthorSubs:N0} Subscribers", true);
+            }
 
             return builder;
         }
@@ -41,16 +50,25 @@ namespace TomatenMusic.Util
         {
 
             DiscordEmbedBuilder builder = new DiscordEmbedBuilder()
-                .WithAuthor(track.Author)
+                .WithAuthor(track.YoutubeAuthorName, track.YoutubeAuthorUri.ToString(), track.YoutubeAuthorThumbnail.ToString())
                 .WithTitle(track.Title)
                 .WithUrl(track.Uri)
                 .WithImageUrl("https://img.youtube.com/vi/" + track.YoutubeIdentifier + "/mqdefault.jpg")
-                .WithDescription(GetMetaTagValue(track.Uri.ToString()))
+                .WithDescription(track.YoutubeDescription)
                 .AddField("Length", Common.GetTimestamp(track.Length), true);
 
             if (position != -1)
             {
                 builder.AddField("Position", (position == 0 ? "Now Playing" : position.ToString()), true);
+            }
+
+            if (!track.IsFile)
+            {
+                builder.AddField("Views", $"{track.YoutubeViews:N0} Views", true);
+                builder.AddField("Rating", $"{track.YoutubeLikes:N0} 👍", true);
+                builder.AddField("Upload Date", $"{track.YoutubeUploadDate.ToString("dd. MMMM, yyyy")}", true);
+                builder.AddField("Comments", $"{track.YoutubeCommentCount:N0} Comments", true);
+                builder.AddField("Channel Subscriptions", $"{track.YoutubeAuthorSubs:N0} Subscribers", true);
             }
 
             return builder;
@@ -59,23 +77,44 @@ namespace TomatenMusic.Util
         public static DiscordEmbed AsEmbed(LavalinkPlaylist playlist)
         {
 
-            DiscordEmbedBuilder builder = new DiscordEmbedBuilder()
-                .WithAuthor(playlist.Author)
+            DiscordEmbedBuilder builder = new DiscordEmbedBuilder();
+
+            if (playlist is YoutubePlaylist)
+            {
+                YoutubePlaylist youtubePlaylist = (YoutubePlaylist)playlist;
+                builder
+                .WithAuthor(playlist.AuthorName, playlist.AuthorUri.ToString(), youtubePlaylist.AuthorThumbnail.ToString())
                 .WithTitle(playlist.Name)
                 .WithUrl(playlist.Url)
-                .WithImageUrl("https://media.tomatentum.net/TMBanner.gif")
-                .WithDescription(GetMetaTagValue(playlist.Url.ToString()))
-                .WithFooter($"{playlist.TrackCount} Tracks | Playlist Length {Common.GetTimestamp(playlist.GetLength())}");
+                .WithDescription(playlist.Description)
+                .WithImageUrl(youtubePlaylist.Thumbnail)
+                .AddField("Tracks", TrackListString(playlist.Tracks), false)
+                .AddField("Track Count", $"{playlist.Tracks.Count()} Tracks", true)
+                .AddField("Length", $"{Common.GetTimestamp(playlist.GetLength())}", true)
+                .AddField("Create Date", $"{youtubePlaylist.CreationTime:dd. MMMM, yyyy}", true);
                 
-            return playlist.AddAsFooter(builder);
+            }else if (playlist is SpotifyPlaylist)
+            {
+                SpotifyPlaylist spotifyPlaylist = (SpotifyPlaylist)playlist;
+                builder
+                .WithAuthor(playlist.AuthorName, playlist.AuthorUri.ToString(), spotifyPlaylist.AuthorThumbnail.ToString())
+                .WithTitle(playlist.Name)
+                .WithUrl(playlist.Url)
+                .WithDescription(playlist.Description)
+                .AddField("Tracks", TrackListString(playlist.Tracks), false)
+                .AddField("Track Count", $"{playlist.Tracks.Count()} Tracks", true)
+                .AddField("Length", $"{Common.GetTimestamp(playlist.GetLength())}", true)
+                .AddField("Spotify Followers", $"{spotifyPlaylist.Followers:N0}", true);
+            }
 
+            return builder;
         }
 
         public static DiscordEmbed GetQueueEmbed(GuildPlayer player)
         {
             DiscordEmbedBuilder builder = new DiscordEmbedBuilder();
 
-            builder.WithDescription(player.PlayerQueue.GetQueueString());
+            builder.WithDescription(TrackListString(player.PlayerQueue.Queue));
             builder.WithTitle("Current Queue");
             builder.WithAuthor($"{player.PlayerQueue.Queue.Count} Songs");
 
@@ -94,26 +133,24 @@ namespace TomatenMusic.Util
             return builder;
         }
 
-        private static string GetMetaTagValue(string url)
+        public static string TrackListString(IEnumerable<MultiTrack> tracks)
         {
-            var getHtmlDoc = new HtmlWeb();
-            var document = getHtmlDoc.Load(url);
-            var metaTags = document.DocumentNode.SelectNodes("//meta");
-            if (metaTags != null)
+            StringBuilder builder = new StringBuilder();
+            int count = 1;
+            foreach (MultiTrack track in tracks)
             {
-                foreach (var sitetag in metaTags)
+
+                if (count > 20)
                 {
-                    if (sitetag.Attributes["name"] != null && sitetag.Attributes["content"] != null && sitetag.Attributes["name"].Value == "description")
-
-                    {
-                        string desc = sitetag.Attributes["content"].Value;
-                        
-                        return desc.Replace("&quot;", "\"");
-                    }
+                    builder.Append(String.Format("***And {0} more...***", tracks.Count() - 20));
+                    break;
                 }
-            }
 
-            return null;
+                builder.Append(count).Append(": ").Append($"[{track.Title}]({track.Uri})").Append(" [").Append(Common.GetTimestamp(track.Length)).Append("] | ");
+                builder.Append($"[{track.YoutubeAuthorName}]({track.YoutubeAuthorUri})").Append("\n\n");
+                count++;
+            }
+            return builder.ToString();
         }
 
         public static string GetTimestamp(TimeSpan timeSpan)
@@ -176,7 +213,7 @@ namespace TomatenMusic.Util
                 if (i == rounded)
                     builder.Append("🔘");
                 else
-                    builder.Append("➖");
+                    builder.Append("─");
             }
 
             return builder.ToString();
@@ -190,13 +227,22 @@ namespace TomatenMusic.Util
 
             string progressBar = $"|{ProgressBar((int)conn.CurrentState.PlaybackPosition.TotalSeconds, (int)track.Length.TotalSeconds)}|\n [{Common.GetTimestamp(conn.CurrentState.PlaybackPosition)}/{Common.GetTimestamp(track.Length)}]";
 
-            builder.WithAuthor(track.Author);
+            builder.WithAuthor(track.YoutubeAuthorName, track.YoutubeAuthorUri.ToString(), track.YoutubeAuthorThumbnail.ToString());
             builder.WithTitle(track.Title);
             builder.WithUrl(track.Uri);
-            builder.WithImageUrl("https://img.youtube.com/vi/" + track.YoutubeIdentifier + "/mqdefault.jpg");
+            builder.WithImageUrl(track.YoutubeThumbnail);
             builder.AddField("Length", Common.GetTimestamp(track.Length), true);
             builder.AddField("Loop", player.PlayerQueue.LoopType.ToString(), true);
             builder.AddField("Progress", progressBar, true);
+            if (!track.IsFile)
+            {
+                builder.AddField("Views", $"{track.YoutubeViews:N0} Views", true);
+                builder.AddField("Rating", $"{track.YoutubeLikes:N0} 👍", true);
+                builder.AddField("Upload Date", $"{track.YoutubeUploadDate.ToString("dd. MMMM, yyyy")}", true);
+                builder.AddField("Comments", $"{track.YoutubeCommentCount:N0} Comments", true);
+                builder.AddField("Channel Subscriptions", $"{track.YoutubeAuthorSubs:N0} Subscribers", true);
+            }
+
 
             return builder;
         }

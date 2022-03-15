@@ -9,6 +9,8 @@ using System.Linq;
 using TomatenMusic.Music.Entitites;
 using Microsoft.Extensions.Logging;
 using DSharpPlus.Lavalink.EventArgs;
+using TomatenMusic.Services;
+using TomatenMusic.Prompt.Implementation;
 
 namespace TomatenMusic.Music
 {
@@ -40,7 +42,15 @@ namespace TomatenMusic.Music
         public bool Paused { get; set; } = false;
         private LavalinkGuildConnection GuildConnection;
         public MultiTrack CurrentSong { get; private set; }
-                
+
+        public Func<List<MultiTrack>, Task<IEnumerable<MultiTrack>>> Converter { get; set; } = async (tracks) =>
+        {
+            List<MultiTrack> newTracks = new List<MultiTrack>();
+            foreach (var track in tracks)
+                newTracks.Add(await Youtube.PopulateTrackInfoAsync(track));
+
+            return newTracks;
+        };
         public GuildPlayer(DiscordGuild guild, LavalinkExtension lavalink)
         {
             this.Guild_id = guild.Id;
@@ -54,13 +64,15 @@ namespace TomatenMusic.Music
             LavalinkGuildConnection guildConnection = await GetGuildConnectionAsync();
             if (guildConnection == null || !guildConnection.IsConnected) return MusicActionResponseType.NOT_CONNECTED;
 
+
+
             if (asSkip)
             {
                 CurrentSong = track;
                 await guildConnection.PlayAsync(track.LavalinkTrack);
                 Logger.LogInformation("Started playing Track {0} on Guild {1}", track.Title, guildConnection.Guild.Name);
+                QueuePrompt.UpdateFor(Guild_id);
                 return MusicActionResponseType.SUCCESS;
-
             }
 
             PlayerQueue.QueueTrack(track);
@@ -73,7 +85,8 @@ namespace TomatenMusic.Music
                 CurrentSong = response.Track;
                 Logger.LogInformation("Started playing Track {0} on Guild {1}", track.Title, guildConnection.Guild.Name);
             }
-                
+            QueuePrompt.UpdateFor(Guild_id);
+
 
             return MusicActionResponseType.SUCCESS;
         }
@@ -94,6 +107,7 @@ namespace TomatenMusic.Music
                 await guildConnection.PlayAsync(nextTrack.LavalinkTrack);
                 CurrentSong = nextTrack;
             }
+            QueuePrompt.UpdateFor(Guild_id);
 
             return MusicActionResponseType.SUCCESS;
         }
@@ -115,6 +129,7 @@ namespace TomatenMusic.Music
                 await guildConnection.PlayAsync(nextTrack.LavalinkTrack);
                 CurrentSong = nextTrack;
             }
+            QueuePrompt.UpdateFor(Guild_id);
 
             return MusicActionResponseType.SUCCESS;
         }
@@ -130,6 +145,7 @@ namespace TomatenMusic.Music
 
             Logger.LogInformation($"Rewinded Track {(await GetGuildConnectionAsync()).CurrentState.CurrentTrack.Title} for Track {response.Track.Title}");
             await PlayAsync(response.Track, true);
+            QueuePrompt.UpdateFor(Guild_id);
 
             return MusicActionResponseType.SUCCESS;
         }
@@ -161,18 +177,17 @@ namespace TomatenMusic.Music
             if (loadResult.LoadResultType.Equals(LavalinkLoadResultType.LoadFailed)) return new MusicActionResponse(MusicActionResponseType.FAIL);
 
             if (loadResult.LoadResultType.Equals(LavalinkLoadResultType.NoMatches)) return new MusicActionResponse(MusicActionResponseType.NO_MATCHES);
-
             if (withSearchResults)
             {
                 return new MusicActionResponse(MusicActionResponseType.SUCCESS,
-                    playlist: new LavalinkPlaylist(loadResult.PlaylistInfo.Name, MultiTrack.ToMultiTrackList(loadResult.Tracks), uri));
+                    tracks: await Youtube.PopulateMultiTrackListAsync(MultiTrack.ToMultiTrackList(loadResult.Tracks)));
             }
 
             if (loadResult.LoadResultType == LavalinkLoadResultType.PlaylistLoaded && !isSearch)
                 return new MusicActionResponse(MusicActionResponseType.SUCCESS,
-                    playlist: new LavalinkPlaylist(loadResult.PlaylistInfo.Name, MultiTrack.ToMultiTrackList(loadResult.Tracks), uri));
+                    playlist: new YoutubePlaylist(loadResult.PlaylistInfo.Name, await Youtube.PopulateMultiTrackListAsync(MultiTrack.ToMultiTrackList(loadResult.Tracks)), uri));
             else
-                return new MusicActionResponse(MusicActionResponseType.SUCCESS, new MultiTrack(loadResult.Tracks.First()));
+                return new MusicActionResponse(MusicActionResponseType.SUCCESS, await Youtube.PopulateTrackInfoAsync(new MultiTrack(loadResult.Tracks.First())));
 
         }
 
@@ -205,6 +220,7 @@ namespace TomatenMusic.Music
             }
             Logger.LogInformation($"Skipped Track {(await GetGuildConnectionAsync()).CurrentState.CurrentTrack.Title} for Track {response.Track.Title}");
             await PlayAsync(response.Track, true);
+            QueuePrompt.UpdateFor(Guild_id);
 
             return MusicActionResponseType.SUCCESS;
         }
@@ -224,6 +240,8 @@ namespace TomatenMusic.Music
                 await conn.PauseAsync();
 
             Paused = !Paused;
+            QueuePrompt.UpdateFor(Guild_id);
+
             return MusicActionResponseType.SUCCESS;
         }
 
@@ -236,7 +254,8 @@ namespace TomatenMusic.Music
             if (conn.CurrentState.CurrentTrack == null) return MusicActionResponseType.NOTHING_PLAYING;
 
             _ = PlayerQueue.SetLoopAsync(type);
-            
+            QueuePrompt.UpdateFor(Guild_id);
+
             return MusicActionResponseType.SUCCESS;
         }
 
@@ -252,6 +271,7 @@ namespace TomatenMusic.Music
 
             if (response != MusicActionResponseType.SUCCESS)
                 return response;
+            QueuePrompt.UpdateFor(Guild_id);
 
             return MusicActionResponseType.SUCCESS;
         }
@@ -266,6 +286,7 @@ namespace TomatenMusic.Music
             await guildConnection.DisconnectAsync();
 
             PlayerQueue.Clear();
+            QueuePrompt.InvalidateFor(Guild_id);
 
             Paused = false;
 
@@ -323,6 +344,7 @@ namespace TomatenMusic.Music
             if (timeSpan.CompareTo(conn.CurrentState.CurrentTrack.Length) == 1) return MusicActionResponseType.FAIL;
 
             await conn.SeekAsync(timeSpan);
+            QueuePrompt.UpdateFor(Guild_id);
 
             return MusicActionResponseType.SUCCESS;
         }
@@ -391,7 +413,7 @@ namespace TomatenMusic.Music
                 return false;
             }
 
-            if ( await GetChannelAsync() != member.VoiceState.Channel)
+            if (await GetChannelAsync() != null && await GetChannelAsync() != member.VoiceState.Channel)
             {
                 return false;
             }

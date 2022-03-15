@@ -17,7 +17,7 @@ namespace TomatenMusic.Commands
     public class PlayCommandGroup : ApplicationCommandModule
     {
         [SlashCommand("query", "Play a song with its youtube/spotify link. (or youtube search)")]
-        [UserInVoiceChannelCheck]
+        [UserInMusicChannelCheck]
         [OnlyGuildCheck]
         public async Task PlayQueryCommand(InteractionContext ctx, [Option("query", "The song search query.")] string query)
         {
@@ -71,6 +71,7 @@ namespace TomatenMusic.Commands
 
         [SlashCommand("file", "Play a song file. (mp3/mp4)")]
         [UserInVoiceChannelCheck]
+        [UserInMusicChannelCheck]
         [OnlyGuildCheck]
         public async Task PlayFileCommand(InteractionContext ctx, [Option("File", "The File that should be played.")] DiscordAttachment file)
         {

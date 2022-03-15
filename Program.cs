@@ -26,7 +26,6 @@ namespace TomatenMusic
 
         public static DiscordClient Discord { get; private set; }
         public static Spotify spotify { get; private set; }
-
         static void Main(string[] args)
         {
             new Program().InitBotAsync(args).ConfigureAwait(false).GetAwaiter().GetResult();
@@ -44,10 +43,12 @@ namespace TomatenMusic
             public string SpotifyClientId { get; private set; }
             [JsonProperty("SpotifyClientSecret")]
             public string SpotifyClientSecret { get; private set; }
+            [JsonProperty("YoutubeApiKey")]
+            public string YoutubeAPIKey { get; private set; }
 
         }
 
-        public ConfigJson config;
+        public static ConfigJson config;
 
         private async Task InitBotAsync(string[] args)
         {
@@ -85,8 +86,8 @@ namespace TomatenMusic
             //Discord.GetSlashCommands().RegisterCommands<MusicCommands>(835089895092387872);
             //Discord.GetSlashCommands().RegisterCommands<PlayCommandGroup>(835089895092387872);
 
-            Discord.GetSlashCommands().RegisterCommands<MusicCommands>();
-            Discord.GetSlashCommands().RegisterCommands<PlayCommandGroup>();
+            Discord.GetSlashCommands().RegisterCommands<MusicCommands>(888493810554900491);
+            Discord.GetSlashCommands().RegisterCommands<PlayCommandGroup>(888493810554900491);
 
             slash.SlashCommandInvoked += Slash_SlashCommandInvoked;
             slash.SlashCommandErrored += Slash_SlashCommandErrored;
@@ -94,7 +95,6 @@ namespace TomatenMusic
 
             await Discord.ConnectAsync();
             await lavalink.ConnectAsync(lavalinkConfig);
-
 
             await Task.Delay(-1);
         }

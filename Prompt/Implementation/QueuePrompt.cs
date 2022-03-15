@@ -14,6 +14,31 @@ namespace TomatenMusic.Prompt.Implementation
 {
     class QueuePrompt : ButtonPrompt
     {
+
+        public static void InvalidateFor(ulong guildId)
+        {
+            foreach (var prompt in ActivePrompts)
+            {
+                if (!(prompt is QueuePrompt))
+                    continue;
+                if (((QueuePrompt)prompt).Player.Guild_id != guildId)
+                    continue;
+                _ = prompt.InvalidateAsync();
+
+            }
+        }
+        public static void UpdateFor(ulong guildId)
+        {
+            foreach (var prompt in ActivePrompts)
+            {
+                if (!(prompt is QueuePrompt))
+                    continue;
+                if (((QueuePrompt)prompt).Player.Guild_id != guildId)
+                    continue;
+                _ = prompt.UpdateAsync();
+            }
+        }
+
         public GuildPlayer Player { get; private set; }
 
         public QueuePrompt(GuildPlayer player, DiscordPromptBase lastPrompt = null, List<DiscordEmbed> embeds = null) : base(lastPrompt, embeds: embeds)
@@ -44,7 +69,6 @@ namespace TomatenMusic.Prompt.Implementation
                         }
 
                         await Player.TogglePauseAsync();
-                        _ = UpdateAsync();
                     }
                 }
                 );
@@ -53,7 +77,7 @@ namespace TomatenMusic.Prompt.Implementation
                 {
                 Emoji = new DiscordComponentEmoji("⏮️"),
                 Row = 1,
-                Style = DSharpPlus.ButtonStyle.Primary,
+                Style = DSharpPlus.ButtonStyle.Secondary,
                 Run = async (args, sender, option) =>
                 {
                     if (!await Player.AreActionsAllowedAsync((DiscordMember)args.User))
@@ -64,7 +88,6 @@ namespace TomatenMusic.Prompt.Implementation
 
                     MusicActionResponseType response = await Player.RewindAsync();
                     Program.Discord.Logger.LogDebug(response.ToString());
-                    _ = UpdateAsync();
                 }
             }
             );
@@ -72,7 +95,7 @@ namespace TomatenMusic.Prompt.Implementation
             {
                 Emoji = new DiscordComponentEmoji("⏹️"),
                 Row = 1,
-                Style = DSharpPlus.ButtonStyle.Primary,
+                Style = DSharpPlus.ButtonStyle.Secondary,
                 Run = async (args, sender, option) =>
                 {
                     if (!await Player.AreActionsAllowedAsync((DiscordMember)args.User))
@@ -82,14 +105,13 @@ namespace TomatenMusic.Prompt.Implementation
                     }
 
                     await Player.QuitAsync();
-                    _ = InvalidateAsync();
                 }
             });
             AddOption(new ButtonPromptOption()
             {
                 Emoji = new DiscordComponentEmoji("⏭️"),
                 Row = 1,
-                Style = DSharpPlus.ButtonStyle.Primary,
+                Style = DSharpPlus.ButtonStyle.Secondary,
                 Run = async (args, sender, option) =>
                 {
                     if (!await Player.AreActionsAllowedAsync((DiscordMember)args.User))
@@ -160,10 +182,27 @@ namespace TomatenMusic.Prompt.Implementation
                                 _ = Player.SetLoopAsync(LoopType.NONE);
                                 break;
                         }
-                        _ = UpdateAsync();
                     }
                 }
                 );
+
+            AddOption(new ButtonPromptOption()
+            {
+                Emoji = new DiscordComponentEmoji("🔀"),
+                Row = 2,
+                Style = DSharpPlus.ButtonStyle.Secondary,
+                Run = async (args, sender, option) =>
+                {
+                    if (!await Player.AreActionsAllowedAsync((DiscordMember)args.User))
+                    {
+                        _ = args.Interaction.EditOriginalResponseAsync(new DiscordWebhookBuilder().WithContent("Please connect to the bots Channel to use this Interaction"));
+                        return;
+                    }
+
+                    await Player.ShuffleAsync();
+
+                }
+            });
         }
 
         protected async override Task<DiscordMessageBuilder> GetMessageAsync()
